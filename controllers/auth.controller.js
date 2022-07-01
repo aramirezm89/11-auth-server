@@ -1,29 +1,62 @@
 /*las funcion creadas en este controlador son exportaddas e importadas
 en el archivo de rutas 
 */
-const { validationResult } = require("express-validator");
 
-const crearUsuario = (req, res) => {
+const Usuario = require('../models/Usuario');
+const bcrypt = require('bcryptjs');
+
+const crearUsuario = async (req, res) => {
   const { name, email, password } = req.body;
-  console.log(name, email, password);
-  return res.json({
-    ok: true,
-    message: "Crear Usuario new",
-  });
+
+  try {
+    //verificar que no exista un email duplicado
+    let usuario = await Usuario.findOne({ email: email });
+
+    if (usuario) {
+      return res.status(400).json({
+        ok: false,
+        message: "Email ingresado ya existe en la base de datos",
+      });
+    }
+
+    //crear usuario con el modelo creado en mongoose
+
+    usuario = new Usuario(req.body);
+
+    /*Hashear contraseña
+      1:crar constante salt la cual tiene el hash
+      2:tomar el password de la solicitud  y encriptar 
+    */
+   
+    const salt = bcrypt.genSaltSync();
+    usuario.password = bcrypt.hashSync(password, salt);
+
+    //generar el JWT
+
+    //crear usuario en la BD
+
+    usuario.save();
+
+    //generar respuesta exitosa
+
+    return res.status(200).json({
+      ok: true,
+      uid: usuario.id,
+      name,
+      message: "Usuario creado exitosamente",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.json({
+      ok: true,
+      message: "Error del servidor, comuniquese con el administrador.",
+    });
+  }
 };
 
 const loginUsuario = (req, res) => {
-  const errors = validationResult(req);
-
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      ok: false,
-      errors: errors.mapped(),
-    });
-  }
-
   const { email, password } = req.body;
-  console.log(email, password);
+
   return res.json({
     ok: true,
     message: "login de usuario /",
