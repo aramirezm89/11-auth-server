@@ -4,6 +4,8 @@ en el archivo de rutas
 
 const Usuario = require('../models/Usuario');
 const bcrypt = require('bcryptjs');
+const { generarJWT } = require('../helpers/jwt');
+
 
 const crearUsuario = async (req, res) => {
   const { name, email, password } = req.body;
@@ -23,6 +25,7 @@ const crearUsuario = async (req, res) => {
 
     usuario = new Usuario(req.body);
 
+
     /*Hashear contraseña
       1:crar constante salt la cual tiene el hash
       2:tomar el password de la solicitud  y encriptar 
@@ -32,7 +35,7 @@ const crearUsuario = async (req, res) => {
     usuario.password = bcrypt.hashSync(password, salt);
 
     //generar el JWT
-
+    const token = await generarJWT(usuario.id,name);
     //crear usuario en la BD
 
     usuario.save();
@@ -44,29 +47,85 @@ const crearUsuario = async (req, res) => {
       uid: usuario.id,
       name,
       message: "Usuario creado exitosamente",
+      token
     });
+
+
+
   } catch (error) {
     console.log(error);
-    return res.json({
-      ok: true,
+    return res.status(500).json({
+      ok: false,
       message: "Error del servidor, comuniquese con el administrador.",
     });
   }
 };
 
-const loginUsuario = (req, res) => {
+const loginUsuario = async (req, res) => {
+
   const { email, password } = req.body;
 
-  return res.json({
-    ok: true,
-    message: "login de usuario /",
-  });
+  try {
+
+    const usurioBD = await Usuario.findOne({email});
+
+    if(!usurioBD){
+      return res.status(400).json({
+        ok:false,
+        message:'Credenciales de usuario no validas'
+      })
+    }
+
+    //confimar que el password hace match
+
+    const validPassword = bcrypt.compareSync(password,usurioBD.password);
+
+    if(!validPassword){
+       return res.status(400).json({
+         ok: false,
+         message: "El password no es valido",
+       });
+    }
+
+    //Generar jsonWebToken
+
+    const token = await generarJWT(usurioBD.id,usurioBD.name);
+
+    //respuesta del servicio
+
+    return res.json({
+      ok:true,
+      uid:usurioBD.id,
+      name:usurioBD.name,
+      token,
+      message:'Bienvenido'
+    })
+
+
+    
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      ok:false,
+      message:'Hable con el administrador'
+    })
+  }
+
 };
 
-const revalidarToken = (req, res) => {
+const revalidarToken = async (req, res) => {
+
+  //{uid y name} son propiedades añadidas en la funcion de validar-jwt al pasar el validacion en true estas son ñadidas.
+ const {uid,name} = req
+
+ const token = await generarJWT(uid,name)
   return res.json({
     ok: true,
     message: "Renew",
+    uid,
+    name,
+    token
+   
   });
 };
 
