@@ -35,7 +35,7 @@ const crearUsuario = async (req, res) => {
     usuario.password = bcrypt.hashSync(password, salt);
 
     //generar el JWT
-    const token = await generarJWT(usuario.id,name);
+    const token = await generarJWT(usuario.id,name,email);
     //crear usuario en la BD
 
     usuario.save();
@@ -45,6 +45,7 @@ const crearUsuario = async (req, res) => {
     return res.status(200).json({
       ok: true,
       uid: usuario.id,
+      email:usuario.email,
       name,
       message: "Usuario creado exitosamente",
       token
@@ -67,9 +68,9 @@ const loginUsuario = async (req, res) => {
 
   try {
 
-    const usurioBD = await Usuario.findOne({email});
+    const usuarioBD = await Usuario.findOne({email});
 
-    if(!usurioBD){
+    if(!usuarioBD){
       return res.status(400).json({
         ok:false,
         message:'Credenciales de usuario no validas'
@@ -78,7 +79,7 @@ const loginUsuario = async (req, res) => {
 
     //confimar que el password hace match
 
-    const validPassword = bcrypt.compareSync(password,usurioBD.password);
+    const validPassword = bcrypt.compareSync(password,usuarioBD.password);
 
     if(!validPassword){
        return res.status(400).json({
@@ -89,17 +90,18 @@ const loginUsuario = async (req, res) => {
 
     //Generar jsonWebToken
 
-    const token = await generarJWT(usurioBD.id,usurioBD.name);
+    const token = await generarJWT(usuarioBD.id, usuarioBD.name, usuarioBD.email);
 
     //respuesta del servicio
 
     return res.json({
-      ok:true,
-      uid:usurioBD.id,
-      name:usurioBD.name,
+      ok: true,
+      uid: usuarioBD.id,
+      name: usuarioBD.name,
+      email: usuarioBD.email,
       token,
-      message:'Bienvenido'
-    })
+      message: "Bienvenido",
+    });
 
 
     
@@ -116,13 +118,14 @@ const loginUsuario = async (req, res) => {
 const revalidarToken = async (req, res) => {
 
   //{uid y name} son propiedades añadidas en la funcion de validar-jwt al pasar el validacion en true estas son ñadidas.
- const {uid,name} = req
+ const {uid,name,email} = req
 
- const token = await generarJWT(uid,name)
+ const token = await generarJWT(uid,name,email)
   return res.json({
     ok: true,
     message: "Renew",
     uid,
+    email,
     name,
     token
    
